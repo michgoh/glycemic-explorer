@@ -1,0 +1,193 @@
+
+<style>
+.cat-btn { padding: 8px 14px; border-radius: 20px; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-secondary); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.cat-btn.active { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); font-weight: 500; }
+.food-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.bar-wrap { flex: 1; background: var(--color-background-secondary); border-radius: 4px; height: 8px; overflow: hidden; }
+.bar { height: 8px; border-radius: 4px; transition: width 0.3s; }
+.food-name { width: 170px; font-size: 14px; color: var(--color-text-primary); }
+.food-tsp { width: 52px; text-align: right; font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.food-serve { font-size: 11px; color: var(--color-text-tertiary); width: 58px; text-align: right; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--color-text-secondary); margin-bottom: 1rem; flex-wrap: wrap; }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cat-note { font-size: 11px; color: var(--color-text-tertiary); font-style: italic; margin-top: 0.75rem; }
+.global-footnote { margin-top: 1.25rem; padding-top: 0.75rem; border-top: 0.5px solid var(--color-border-tertiary); font-size: 11px; color: var(--color-text-secondary); line-height: 1.6; }
+.sup { font-size: 9px; vertical-align: super; }
+</style>
+
+<h2 class="sr-only">Glycemic food explorer — browse foods by category sorted low to high by sugar teaspoon equivalent</h2>
+
+<div style="padding: 1rem 0 0.5rem;">
+  <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 1rem;">Sugar teaspoon equivalents per serving, sorted low → high. Source: Unwin et al., Journal of Insulin Resistance 2016.</p>
+
+  <div id="cats" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem;"></div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#1D9E75;"></span>Low (0–2 tsp)</span>
+    <span><span class="dot" style="background:#EF9F27;"></span>Medium (2–5 tsp)</span>
+    <span><span class="dot" style="background:#E24B4A;"></span>High (5+ tsp)</span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 0 0 6px; border-bottom: 1px solid var(--color-border-secondary); margin-bottom: 4px;">
+    <span class="food-name" style="font-size:12px; color:var(--color-text-secondary); font-weight:500;">Food</span>
+    <div style="flex:1; font-size:12px; color:var(--color-text-secondary);">Sugar load</div>
+    <span class="food-tsp" style="font-size:12px; color:var(--color-text-secondary);">Tsp</span>
+    <span class="food-serve" style="font-size:12px; color:var(--color-text-secondary);">Serving</span>
+  </div>
+
+  <div id="list"></div>
+  <div id="cat-note" class="cat-note"></div>
+
+  <div class="global-footnote">
+    <span class="sup">*</span> Drinks & Dairy and Packaged/Added Sugar figures are per 100g or 100ml, not per typical serving size. All other categories reflect per-serving amounts as shown in the source charts. Direct comparisons across these categories may be misleading.
+  </div>
+</div>
+
+<script>
+const data = {
+  "Vegetables": {
+    note: "",
+    items: [
+      { name: "Broccoli", tsp: 0.1, serve: "250g" },
+      { name: "Cabbage", tsp: 0.1, serve: "80g" },
+      { name: "Courgette / salad leaves", tsp: 0.1, serve: "~80g" },
+      { name: "Broccoli", tsp: 0.2, serve: "80g" },
+      { name: "Frozen peas", tsp: 1.3, serve: "80g" },
+      { name: "Sweet corn", tsp: 4.0, serve: "80g" },
+      { name: "French fries, baked", tsp: 7.5, serve: "150g" },
+      { name: "Potato, boiled", tsp: 9.1, serve: "150g" },
+    ]
+  },
+  "Fruits": {
+    note: "",
+    items: [
+      { name: "Apricots, fresh", tsp: 1.1, serve: "120g" },
+      { name: "Strawberries", tsp: 1.4, serve: "120g" },
+      { name: "Nectarines, fresh", tsp: 1.5, serve: "120g" },
+      { name: "Watermelon, fresh", tsp: 1.8, serve: "120g" },
+      { name: "Apple", tsp: 2.2, serve: "120g" },
+      { name: "Grapes, black", tsp: 4.0, serve: "120g" },
+      { name: "Banana", tsp: 5.9, serve: "120g" },
+      { name: "Raisins", tsp: 10.3, serve: "60g" },
+    ]
+  },
+  "Rice & Pasta": {
+    note: "",
+    items: [
+      { name: "Spaghetti, brown", tsp: 6.2, serve: "180g" },
+      { name: "Spaghetti, white", tsp: 6.6, serve: "180g" },
+      { name: "Brown rice", tsp: 7.3, serve: "150g" },
+      { name: "White rice", tsp: 9.6, serve: "150g" },
+      { name: "Basmati rice", tsp: 10.1, serve: "150g" },
+    ]
+  },
+  "Bread": {
+    note: "All slices are 30g (one small slice).",
+    items: [
+      { name: "Wholemeal, stoneground", tsp: 2.6, serve: "30g" },
+      { name: "Pita, wholemeal", tsp: 2.9, serve: "30g" },
+      { name: "Oatmeal batch", tsp: 3.3, serve: "30g" },
+      { name: "Brown", tsp: 3.3, serve: "30g" },
+      { name: "White", tsp: 3.7, serve: "30g" },
+      { name: "Rye (69% wholegrain)", tsp: 4.0, serve: "30g" },
+      { name: "Wholegrain barley", tsp: 5.5, serve: "30g" },
+    ]
+  },
+  "Cereals": {
+    note: "All 30g dry except oat porridge (150ml).",
+    items: [
+      { name: "Bran Flakes", tsp: 3.7, serve: "30g" },
+      { name: "Special K", tsp: 4.0, serve: "30g" },
+      { name: "Mini Wheats", tsp: 4.4, serve: "30g" },
+      { name: "Oat porridge", tsp: 4.4, serve: "150ml" },
+      { name: "Shredded Wheat", tsp: 4.8, serve: "30g" },
+      { name: "Coco Pops", tsp: 7.3, serve: "30g" },
+      { name: "Cornflakes", tsp: 8.4, serve: "30g" },
+    ]
+  },
+  "Drinks & Dairy *": {
+    note: "Figures are per 100g/ml, not per typical serving. See footnote.",
+    items: [
+      { name: "Skimmed milk", tsp: 0.9, serve: "100ml" },
+      { name: "Milk", tsp: 1.0, serve: "125ml" },
+      { name: "Apple juice (pure)", tsp: 4.0, serve: "200ml" },
+      { name: "Apple juice", tsp: 4.3, serve: "100ml" },
+    ]
+  },
+  "Protein & Other": {
+    note: "Chicken, fish, almonds, mushrooms, cheese and meat listed as 'very low glycaemic' in source — no exact tsp given, shown as 0.",
+    items: [
+      { name: "Eggs", tsp: 0, serve: "60g" },
+      { name: "Chicken", tsp: 0, serve: "—" },
+      { name: "Oily fish", tsp: 0, serve: "—" },
+      { name: "Almonds", tsp: 0, serve: "—" },
+      { name: "Mushrooms", tsp: 0, serve: "—" },
+      { name: "Cheese", tsp: 0, serve: "—" },
+      { name: "Meat", tsp: 0, serve: "—" },
+      { name: "Honey", tsp: 17.6, serve: "100g" },
+    ]
+  },
+  "Packaged / Added Sugar *": {
+    note: "Figures are per 100g/ml, not per typical serving. See footnote.",
+    items: [
+      { name: "Fizzy orange (1/3 can)", tsp: 1.0, serve: "100ml" },
+      { name: "Raspberry yoghurt", tsp: 2.4, serve: "100g" },
+      { name: "Digestive biscuits", tsp: 8.8, serve: "100g" },
+      { name: "Malt loaf", tsp: 14.7, serve: "100g" },
+      { name: "Chocolate rice crispies", tsp: 24.4, serve: "100g" },
+    ]
+  },
+};
+
+const cats = Object.keys(data);
+let active = cats[0];
+
+function barColor(tsp) {
+  if (tsp <= 2) return "#1D9E75";
+  if (tsp <= 5) return "#EF9F27";
+  return "#E24B4A";
+}
+
+function render() {
+  const cat = data[active];
+  const items = [...cat.items].sort((a, b) => a.tsp - b.tsp);
+  const maxTsp = Math.max(...items.map(i => i.tsp), 1);
+  const list = document.getElementById("list");
+  const catNote = document.getElementById("cat-note");
+  list.innerHTML = "";
+  catNote.textContent = cat.note || "";
+
+  items.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "food-row";
+    const pct = maxTsp > 0 ? Math.round((item.tsp / maxTsp) * 100) : 0;
+    row.innerHTML = `
+      <span class="food-name">${item.name}</span>
+      <div class="bar-wrap"><div class="bar" style="width:${pct}%; background:${barColor(item.tsp)};"></div></div>
+      <span class="food-tsp">${item.tsp.toFixed(1)}</span>
+      <span class="food-serve">${item.serve}</span>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function buildButtons() {
+  const wrap = document.getElementById("cats");
+  cats.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.className = "cat-btn" + (cat === active ? " active" : "");
+    btn.textContent = cat;
+    btn.onclick = () => {
+      active = cat;
+      document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      render();
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+buildButtons();
+render();
+</script>
